@@ -40,7 +40,7 @@ on:
       BUILD_TARGET:
         description: 'BUILD_TARGET'
         required: true
-        default: 'recovery'
+        default: 'vendorboot'
 
 jobs:
   build:
@@ -119,6 +119,16 @@ jobs:
       run: |
         git clone ${{ github.event.inputs.DEVICE_TREE_URL }} -b ${{ github.event.inputs.DEVICE_TREE_BRANCH }} ./${{ github.event.inputs.DEVICE_PATH }}
       working-directory: ${{ github.workspace }}/workspace
+
+    # ==== 关键修复开始 ==== 
+    - name: Remove TWRP generator (conflict fix)
+      run: rm -rf vendor/twrp/build/soong/generator
+      working-directory: ${{ github.workspace }}/workspace
+
+    - name: Remove AOSP generator (conflict fix)
+      run: rm -rf build/soong/generator
+      working-directory: ${{ github.workspace }}/workspace
+    # ==== 关键修复结束 ====
 
     # 仅删除 device tree 中的重复 generator，保留 vendor/twrp 的
     - name: Fix duplicate generator package
