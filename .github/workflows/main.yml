@@ -72,7 +72,7 @@ jobs:
       run: |
         sudo apt update && sudo apt install -y git aria2
         mkdir -p ~/bin
-        curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
+        curl -s https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
         chmod +x ~/bin/repo
         sudo ln -sf ~/bin/repo /usr/bin/repo
 
@@ -82,6 +82,27 @@ jobs:
       with:
         ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
+    # 1️⃣ 缓存 AOSP 源码 + Omni vendor
+    - name: Cache AOSP + vendor
+      uses: actions/cache@v4
+      id: cache-aosp
+      with:
+        path: |
+          ${{ github.workspace }}/workspace/.repo
+          ${{ github.workspace }}/workspace/vendor/omni
+        key: aosp-${{ github.event.inputs.MANIFEST_BRANCH }}-${{ hashFiles('**/device/**') }}
+        restore-keys: |
+          aosp-${{ github.event.inputs.MANIFEST_BRANCH }}-
+
+    # 2️⃣ 缓存 ccache
+    - name: Cache ccache
+      uses: actions/cache@v4
+      with:
+        path: ${{ github.workspace }}/workspace/.ccache
+        key: ccache-${{ github.event.inputs.DEVICE_NAME }}-${{ github.run_id }}
+        restore-keys: |
+          ccache-${{ github.event.inputs.DEVICE_NAME }}-
+
     - name: Initialize & Sync
       run: |
         mkdir -p workspace
@@ -89,9 +110,16 @@ jobs:
         git config --global user.name "builder"
         git config --global user.email "builder@example.com"
         repo init --depth=1 -u ${{ github.event.inputs.MANIFEST_URL }} -b ${{ github.event.inputs.MANIFEST_BRANCH }}
-        repo sync -c --no-clone-bundle --no-tags --optimized-fetch --prune --force-sync -j$(nproc --all)
-        # 额外拉取 Omni vendor（关键）
-        git clone --depth=1 https://github.com/OmniROM/android_vendor_omni.git -b android-12.1 vendor/omni
+
+        # 命中缓存就跳过 repo sync
+        if [ ! -d .repo/manifests ]; then
+          repo sync -c --no-clone-bundle --no-tags --optimized-fetch --prune --force-sync -j$(nproc --all)
+        fi
+
+        # 命中缓存就跳过 vendor clone
+        if [ ! -d vendor/omni ]; then
+          git clone --depth=1 https://github.com/OmniROM/android_vendor_omni.git -b android-12.1 vendor/omni
+        fi
 
     - name: Clone device tree
       run: |
@@ -115,6 +143,9 @@ jobs:
       run: |
         source build/envsetup.sh
         export ALLOW_MISSING_DEPENDENCIES=true
+        export USE_CCACHE=1
+        export CCACHE_DIR=${{ github.workspace }}/workspace/.ccache
+        ccache -M 10G
         lunch ${{ github.event.inputs.MAKEFILE_NAME }}-eng
         make clean
         make ${{ github.event.inputs.BUILD_TARGET }}image -j$(nproc --all)
