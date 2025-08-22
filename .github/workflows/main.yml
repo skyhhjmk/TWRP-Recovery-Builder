@@ -40,7 +40,7 @@ on:
       BUILD_TARGET:
         description: 'BUILD_TARGET'
         required: true
-        default: 'vendorboot'
+        default: 'recovery'
 
 jobs:
   build:
@@ -84,19 +84,19 @@ jobs:
 
     - name: Initialize & Sync
       run: |
-        mkdir workspace && cd workspace
+        mkdir -p workspace
+        cd workspace
         git config --global user.name "builder"
         git config --global user.email "builder@example.com"
         repo init --depth=1 -u ${{ github.event.inputs.MANIFEST_URL }} -b ${{ github.event.inputs.MANIFEST_BRANCH }}
         repo sync -c --no-clone-bundle --no-tags --optimized-fetch --prune --force-sync -j$(nproc --all)
         # 额外拉取 Omni vendor（关键）
         git clone --depth=1 https://github.com/OmniROM/android_vendor_omni.git -b android-12.1 vendor/omni
-      id: pwd
 
     - name: Clone device tree
       run: |
         git clone ${{ github.event.inputs.DEVICE_TREE_URL }} -b ${{ github.event.inputs.DEVICE_TREE_BRANCH }} ./${{ github.event.inputs.DEVICE_PATH }}
-      working-directory: ${{ steps.pwd.outputs.workspace-folder }}
+      working-directory: ${{ github.workspace }}/workspace
 
     - name: Clone common tree
       if: |
@@ -104,7 +104,7 @@ jobs:
         && github.event.inputs.COMMON_PATH != null
       run: |
         git clone ${{ github.event.inputs.COMMON_TREE_URL }} -b ${{ github.event.inputs.DEVICE_TREE_BRANCH }} ./${{ github.event.inputs.COMMON_PATH }}
-      working-directory: ${{ steps.pwd.outputs.workspace-folder }}
+      working-directory: ${{ github.workspace }}/workspace
 
     - name: Set Swap Space
       uses: pierotofy/set-swap-space@master
@@ -118,7 +118,7 @@ jobs:
         lunch ${{ github.event.inputs.MAKEFILE_NAME }}-eng
         make clean
         make ${{ github.event.inputs.BUILD_TARGET }}image -j$(nproc --all)
-      working-directory: ${{ steps.pwd.outputs.workspace-folder }}
+      working-directory: ${{ github.workspace }}/workspace
 
     - name: Upload to Release
       uses: softprops/action-gh-release@v1
