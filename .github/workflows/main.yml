@@ -126,6 +126,11 @@ jobs:
         git clone ${{ github.event.inputs.DEVICE_TREE_URL }} -b ${{ github.event.inputs.DEVICE_TREE_BRANCH }} ./${{ github.event.inputs.DEVICE_PATH }}
       working-directory: ${{ github.workspace }}/workspace
 
+    # 修复重复 generator package
+    - name: Fix duplicate generator package
+      run: rm -rf ${{ github.event.inputs.DEVICE_PATH }}/build/soong/generator
+      working-directory: ${{ github.workspace }}/workspace
+
     - name: Clone common tree
       if: |
         github.event.inputs.COMMON_TREE_URL != null
