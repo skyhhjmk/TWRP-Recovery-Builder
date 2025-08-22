@@ -139,6 +139,10 @@ jobs:
       with:
         swap-size-gb: 12
 
+    - name: Fix duplicate generator package (vendor)
+      run: rm -rf vendor/twrp/build/soong/generator
+      working-directory: ${{ github.workspace }}/workspace
+
     - name: Building recovery
       run: |
         source build/envsetup.sh
