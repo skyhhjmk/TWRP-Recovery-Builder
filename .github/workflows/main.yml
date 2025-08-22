@@ -110,13 +110,8 @@ jobs:
         git config --global user.name "builder"
         git config --global user.email "builder@example.com"
         repo init --depth=1 -u ${{ github.event.inputs.MANIFEST_URL }} -b ${{ github.event.inputs.MANIFEST_BRANCH }}
-
-        # 命中缓存就跳过 repo sync
-        if [ ! -d .repo/manifests ]; then
-          repo sync -c --no-clone-bundle --no-tags --optimized-fetch --prune --force-sync -j$(nproc --all)
-        fi
-
-        # 命中缓存就跳过 vendor clone
+        repo sync -c --no-clone-bundle --no-tags --optimized-fetch --prune --force-sync -j$(nproc --all)
+        # 拉 vendor
         if [ ! -d vendor/omni ]; then
           git clone --depth=1 https://github.com/OmniROM/android_vendor_omni.git -b android-12.1 vendor/omni
         fi
