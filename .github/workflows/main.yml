@@ -105,16 +105,24 @@ jobs:
 
     - name: Initialize & Sync
       run: |
-        mkdir -p workspace
-        cd workspace
-        git config --global user.name "builder"
-        git config --global user.email "builder@example.com"
-        repo init --depth=1 -u ${{ github.event.inputs.MANIFEST_URL }} -b ${{ github.event.inputs.MANIFEST_BRANCH }}
-        repo sync -c --no-clone-bundle --no-tags --optimized-fetch --prune --force-sync -j$(nproc --all)
-        if [ ! -d vendor/omni ]; then
-          git clone --depth=1 https://github.com/OmniROM/android_vendor_omni.git -b android-12.1 vendor/omni
-        fi
+          mkdir -p workspace
+          cd workspace
+          repo init --depth=1 -u ${{ github.event.inputs.MANIFEST_URL }} -b ${{ github.event.inputs.MANIFEST_BRANCH }}
+          repo sync -c --no-clone-bundle --no-tags --optimized-fetch --prune --force-sync -j$(nproc --all)
 
+    - name: Remove ALL conflicting generators (MUST DO)
+      run: |
+          rm -rf vendor/twrp/build/soong/generator
+          rm -rf build/soong/generator
+          find ${{ github.event.inputs.DEVICE_PATH }} -type d -name "generator" | xargs rm -rf
+          rm -rf out/soong/.bootstrap
+      working-directory: ${{ github.workspace }}/workspace
+
+    - name: Clone device tree
+      run: |
+          git clone ${{ github.event.inputs.DEVICE_TREE_URL }} -b ${{ github.event.inputs.DEVICE_TREE_BRANCH }} ./${{ github.event.inputs.DEVICE_PATH }}
+      working-directory: ${{ github.workspace }}/workspace
+        
     - name: Clone device tree
       run: |
         git clone ${{ github.event.inputs.DEVICE_TREE_URL }} -b ${{ github.event.inputs.DEVICE_TREE_BRANCH }} ./${{ github.event.inputs.DEVICE_PATH }}
